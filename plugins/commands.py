@@ -3,9 +3,7 @@ import re
 import json
 import base64
 import sys
-import time
 from shortzy import Shortzy
-from yarl import Query
 from telegraph import upload_file
 import random, string
 import asyncio
@@ -195,11 +193,6 @@ async def start(client, message):
     if type_ != 'shortlink' and settings['shortlink']:
         if not await db.has_premium_access(message.from_user.id):
             link = await get_shortlink(settings['url'], settings['api'], f"https://t.me/{temp.U_NAME}?start=shortlink_{grp_id}_{file_id}")
-        
-        # URL validation
-            if not link.startswith("http://") and not link.startswith("https://"):
-                await message.reply("Invalid link format. Please try again.")
-                return
             btn = [[
                 InlineKeyboardButton("♻️ Get File ♻️", url=link)
             ],[
@@ -207,7 +200,7 @@ async def start(client, message):
             ]]
             await message.reply(f"[{get_size(files.file_size)}] {files.file_name}\n\nYour file is ready, Please get using this link. 👍", reply_markup=InlineKeyboardMarkup(btn), protect_content=True)
             return
-        
+            
     CAPTION = settings['caption']
     f_caption = CAPTION.format(
         file_name = files.file_name,
@@ -369,56 +362,38 @@ async def save_caption(client, message):
 async def save_shortlink(client, message):
     userid = message.from_user.id if message.from_user else None
     if not userid:
-        return await message.reply("<b>You are Anonymous admin, you can't use this command!</b>")
-    
+        return await message.reply("<b>You are Anonymous admin you can't use this command !</b>")
     chat_type = message.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text("Use this command in group.")
-    
+        return await message.reply_text("Use this command in group.")    
     grp_id = message.chat.id
     title = message.chat.title
-    
-    # Check if user is an admin
     if not await is_check_admin(client, grp_id, message.from_user.id):
-        return await message.reply_text('You are not an admin in this group.')
-
-    # Parse message to extract shortlink and API
-    if len(message.text.split(" ", 2)) < 3:
-        return await message.reply_text(
-            "<b>Command Incomplete:</b>\n"
-            "Please provide both a shortlink URL and API key.\n\n"
-            "Example:\n<code>/shortlink mdisklink.link 5843c3cc645f5077b2200a2c77e0344879880b3e</code>"
-        )
-    
-    _, url, api = message.text.split(" ", 2)
-    
+        return await message.reply_text('You not admin in this group.')
+    try:
+        _, url, api = message.text.split(" ", 2)
+    except:
+        return await message.reply_text("<b>Command Incomplete:-\n\ngive me a shortlink & api along with the command...\n\nEx:- <code>/shortlink mdisklink.link 5843c3cc645f5077b2200a2c77e0344879880b3e</code>")   
     try:
         await get_shortlink(url, api, f'https://t.me/{temp.U_NAME}')
     except:
-        return await message.reply_text("Your shortlink API or URL is invalid, please check again!")
-    
+        return await message.reply_text("Your shortlink API or URL invalid, Please Check again!")   
     await save_group_settings(grp_id, 'url', url)
     await save_group_settings(grp_id, 'api', api)
     await message.reply_text(f"Successfully changed shortlink for {title} to\n\nURL - {url}\nAPI - {api}")
-
-
+    
 @Client.on_message(filters.command('get_custom_settings'))
 async def get_custom_settings(client, message):
     userid = message.from_user.id if message.from_user else None
     if not userid:
-        return await message.reply("<b>You are Anonymous admin, you can't use this command!</b>")
-    
+        return await message.reply("<b>You are Anonymous admin you can't use this command !</b>")
     chat_type = message.chat.type
     if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         return await message.reply_text("Use this command in group.")
-    
     grp_id = message.chat.id
     title = message.chat.title
-    
     if not await is_check_admin(client, grp_id, message.from_user.id):
-        return await message.reply_text('You are not an admin in this group.')
-
-    # Fetch settings for the group
+        return await message.reply_text('You not admin in this group...')    
     settings = await get_settings(grp_id)
 
     # Format the output text
@@ -426,21 +401,22 @@ async def get_custom_settings(client, message):
     
     text = f"""Custom settings for: {title}
 
-Shortlink URL: {settings.get("url", "Not Set")}
-Shortlink API: {settings.get("api", "Not Set")}
+Shortlink URL: {settings["url"]}
+Shortlink API: {settings["api"]}
 
-IMDb Template: {settings.get('template', 'Not Set')}
+IMDb Template: {settings['template']}
 
-File Caption: {settings.get('caption', 'Not Set')}
+File Caption: {settings['caption']}
 
-Welcome Text: {settings.get('welcome_text', 'Not Set')}
+Welcome Text: {settings['welcome_text']}
 
-Tutorial Link: {settings.get('tutorial', 'Not Set')}
+Tutorial Link: {settings['tutorial']}
 
-Force Channels: {force_channels}"""
+Force Channels: {str(settings['fsub'])[1:-1] if settings['fsub'] else 'Not Set'}"""
 
-    # Close button
-    btn = [[InlineKeyboardButton(text="Close", callback_data="close_data")]]
+    btn = [[
+        InlineKeyboardButton(text="Close", callback_data="close_data")
+    ]]
     await message.reply_text(text, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True)
 
 @Client.on_message(filters.command('set_welcome'))
@@ -695,7 +671,7 @@ async def remove_fsub(client, message):
     if not await is_check_admin(client, grp_id, user_id):
         return await message.reply_text('You not admin in this group.')
     if not settings['fsub']:
-        await Query.answer("ʏᴏᴜ ᴅɪᴅɴ'ᴛ ᴀᴅᴅᴇᴅ ᴀɴʏ ꜰᴏʀᴄᴇ sᴜʙsᴄʀɪʙᴇ ᴄʜᴀɴɴᴇʟ...", show_alert=True)
+        await query.answer("ʏᴏᴜ ᴅɪᴅɴ'ᴛ ᴀᴅᴅᴇᴅ ᴀɴʏ ꜰᴏʀᴄᴇ sᴜʙsᴄʀɪʙᴇ ᴄʜᴀɴɴᴇʟ...", show_alert=True)
         return
     await save_group_settings(grp_id, 'fsub', None)
     await message.reply_text("<b>Successfully removed your force channel id...</b>")
