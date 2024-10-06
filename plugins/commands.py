@@ -15,19 +15,17 @@ from utils import get_settings, get_size, is_subscribed, is_check_admin, get_sho
 
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
+    botid = client.me.id
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
-    except Exception as e:
+    except:
         await message.react(emoji="⚡️", big=True)
-
-    # Handling group or supergroup messages
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         if not await db.get_chat(message.chat.id):
             total = await client.get_chat_members_count(message.chat.id)
             username = f'@{message.chat.username}' if message.chat.username else 'Private'
-            await client.send_message(LOG_CHANNEL, script.NEW_GROUP_TXT.format(message.chat.title, message.chat.id, username, total))
+            await client.send_message(LOG_CHANNEL, script.NEW_GROUP_TXT.format(message.chat.title, message.chat.id, username, total))       
             await db.add_chat(message.chat.id, message.chat.title)
-        
         wish = get_wish()
         user = message.from_user.mention if message.from_user else "Dear"
         btn = [[
@@ -36,20 +34,39 @@ async def start(client, message):
         ]]
         await message.reply(text=f"<b>ʜᴇʏ {user}, <i>{wish}</i>\nʜᴏᴡ ᴄᴀɴ ɪ ʜᴇʟᴘ ʏᴏᴜ??</b>", reply_markup=InlineKeyboardMarkup(btn))
         return 
-
-    # Adding new users to the database
+        
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.NEW_USER_TXT.format(message.from_user.mention, message.from_user.id))
 
-    # Verifying user status
     verify_status = await get_verify_status(message.from_user.id)
     if verify_status['is_verified'] and datetime.datetime.now() > verify_status['expire_time']:
         await update_verify_status(message.from_user.id, is_verified=False)
+    
+    if (len(message.command) != 2) or (len(message.command) == 2 and message.command[1] == 'start'):
+        buttons = [[
+            InlineKeyboardButton("+ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ +", url=f'http://t.me/{temp.U_NAME}?startgroup=start')
+        ],[
+            InlineKeyboardButton('ℹ️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
+            InlineKeyboardButton('🧑‍💻 sᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
+        ],[
+            InlineKeyboardButton('👨‍🚒 ʜᴇʟᴘ', callback_data='help'),
+            InlineKeyboardButton('🔎 ɪɴʟɪɴᴇ', switch_inline_query_current_chat=''),
+            InlineKeyboardButton('📚 ᴀʙᴏᴜᴛ', callback_data='about')
+        ],[
+            InlineKeyboardButton('💰 ᴇᴀʀɴ ᴜɴʟɪᴍɪᴛᴇᴅ ᴍᴏɴᴇʏ ʙʏ ʙᴏᴛ 💰', callback_data='earn')
+        ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await message.reply_photo(
+            photo=random.choice(PICS),
+            caption=script.START_TXT.format(message.from_user.mention, get_wish()),
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+        return
 
-    # Handle the "/start plans" command
     if len(message.command) == 2 and message.command[1] == "plans":
-        btn = [
+        btn = [            
             [InlineKeyboardButton("ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ʀᴇᴄᴇɪᴘᴛ 🧾", url=OWNER_USERNAME)],
             [InlineKeyboardButton("⚠️ ᴄʟᴏsᴇ / ᴅᴇʟᴇᴛᴇ ⚠️", callback_data="close_data")]
         ]
@@ -63,16 +80,13 @@ async def start(client, message):
 
     mc = message.command[1]
 
-    # Verification handling
     if mc.startswith('verify'):
         _, token = mc.split("_", 1)
         verify_status = await get_verify_status(message.from_user.id)
         if verify_status['verify_token'] != token:
             return await message.reply("Your verify token is invalid.")
-
         expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=VERIFY_EXPIRE)
         await update_verify_status(message.from_user.id, is_verified=True, verified_time=time_now(), expire_time=expiry_time)
-        
         if verify_status["link"] == "":
             reply_markup = None
         else:
@@ -80,11 +94,23 @@ async def start(client, message):
                 InlineKeyboardButton("📌 Get File 📌", url=f'https://t.me/{temp.U_NAME}?start={verify_status["link"]}')
             ]]
             reply_markup = InlineKeyboardMarkup(btn)
-        
         await message.reply(f"✅ You successfully verified until: {get_readable_time(VERIFY_EXPIRE)}", reply_markup=reply_markup, protect_content=True)
         return
     
-    # Check subscription and settings
+    verify_status = await get_verify_status(message.from_user.id)
+    if not await db.has_premium_access(message.from_user.id):
+        if IS_VERIFY and not verify_status['is_verified']:
+            token = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+            await update_verify_status(message.from_user.id, verify_token=token, link="" if mc == 'inline_verify' else mc)
+            link = await get_shortlink(SHORTLINK_URL, SHORTLINK_API, f'https://t.me/{temp.U_NAME}?start=verify_{token}')
+            btn = [[
+                InlineKeyboardButton("🧿 Verify 🧿", url=link)
+            ],[
+                InlineKeyboardButton('🗳 Tutorial 🗳', url=VERIFY_TUTORIAL)
+            ]]
+            await message.reply("You not verified today! Kindly verify now. 🔐", reply_markup=InlineKeyboardMarkup(btn), protect_content=True)
+            return
+
     settings = await get_settings(int(mc.split("_", 2)[1]))
     if not await db.has_premium_access(message.from_user.id):
         if settings['fsub']:
@@ -102,17 +128,14 @@ async def start(client, message):
                 )
                 return 
         
-    # Handle 'all' files command
     if mc.startswith('all'):
         _, grp_id, key = mc.split("_", 2)
         files = temp.FILES.get(key)
         if not files:
             return await message.reply('No Such All Files Exist!')
-
         settings = await get_settings(int(grp_id))
         file_ids = []
         total_files = await message.reply(f"<b><i>🗂 Total files - <code>{len(files)}</code></i></b>")
-        
         for file in files:
             CAPTION = settings['caption']
             f_caption = CAPTION.format(
@@ -141,7 +164,7 @@ async def start(client, message):
                 chat_id=message.from_user.id,
                 file_id=file.file_id,
                 caption=f_caption,
-                protect_content=False if await db.has_premium_access(message.from_user.id) else True,
+                protect_content=settings['file_secure'],
                 reply_markup=InlineKeyboardMarkup(btn)
             )
             file_ids.append(msg.id)
@@ -156,19 +179,13 @@ async def start(client, message):
         )
         await vp.edit("Tʜᴇ ғɪʟᴇ ʜᴀs ʙᴇᴇɴ ɢᴏɴᴇ ! Cʟɪᴄᴋ ɢɪᴠᴇɴ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪᴛ ᴀɢᴀɪɴ.", reply_markup=InlineKeyboardMarkup(buttons))
         return
-# Function to handle requests for specific files
-async def handle_file_request(client, message, mc):
+
     type_, grp_id, file_id = mc.split("_", 2)
     files_ = await get_file_details(file_id)
-    
-    # Check if the requested file exists
     if not files_:
         return await message.reply('No Such File Exist!')
-
-    files = files_[0]  # Extract the file details
-    settings = await get_settings(int(grp_id))  # Fetch settings for the group
-
-    # Generate a shortlink if the user doesn't have premium access and shortlink is enabled
+    files = files_[0]
+    settings = await get_settings(int(grp_id))
     if type_ != 'shortlink' and settings['shortlink']:
         if not await db.has_premium_access(message.from_user.id):
             link = await get_shortlink(settings['url'], settings['api'], f"https://t.me/{temp.U_NAME}?start=shortlink_{grp_id}_{file_id}")
@@ -177,22 +194,15 @@ async def handle_file_request(client, message, mc):
             ],[
                 InlineKeyboardButton("📍 ʜᴏᴡ ᴛᴏ ᴏᴘᴇɴ ʟɪɴᴋ 📍", url=settings['tutorial'])
             ]]
-            await message.reply(
-                f"[{get_size(files.file_size)}] {files.file_name}\n\nYour file is ready, Please get using this link. 👍", 
-                reply_markup=InlineKeyboardMarkup(btn), 
-                protect_content=True
-            )
+            await message.reply(f"[{get_size(files.file_size)}] {files.file_name}\n\nYour file is ready, Please get using this link. 👍", reply_markup=InlineKeyboardMarkup(btn), protect_content=True)
             return
             
-    # Prepare the caption for the file message
     CAPTION = settings['caption']
     f_caption = CAPTION.format(
-        file_name=files.file_name,
-        file_size=get_size(files.file_size),
+        file_name = files.file_name,
+        file_size = get_size(files.file_size),
         file_caption=files.caption
     )
-
-    # Prepare buttons based on streaming settings
     if settings.get('is_stream', IS_STREAM):
         btn = [[
             InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{file_id}")
@@ -209,35 +219,23 @@ async def handle_file_request(client, message, mc):
         ],[
             InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
         ]]
-
-    # Send the file to the user
     vp = await client.send_cached_media(
         chat_id=message.from_user.id,
         file_id=file_id,
         caption=f_caption,
-        protect_content=False if await db.has_premium_access(message.from_user.id) else True,
+        protect_content=settings['file_secure'],
         reply_markup=InlineKeyboardMarkup(btn)
     )
-
-    # Inform the user about file deletion timing
     time = get_readable_time(PM_FILE_DELETE_TIME)
-    msg = await vp.reply(
-        f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ"
-    )
-
-    # Wait for the specified time before deleting the messages
+    msg = await vp.reply(f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
     await asyncio.sleep(PM_FILE_DELETE_TIME)
-
-    # Prepare to delete the original file message and send a notification
     btns = [[
         InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ', callback_data=f"get_del_file#{grp_id}#{file_id}")
     ]]
-    await msg.delete()  # Delete the note message
-    await vp.delete()  # Delete the file message
-    await vp.reply(
-        "Tʜᴇ ғɪʟᴇ ʜᴀs ʙᴇᴇɴ ɢᴏɴᴇ ! Cʟɪᴄᴋ ɢɪᴠᴇɴ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪᴛ ᴀɢᴀɪɴ.", 
-        reply_markup=InlineKeyboardMarkup(btns)
-    )
+    await msg.delete()
+    await vp.delete()
+    await vp.reply("Tʜᴇ ғɪʟᴇ ʜᴀs ʙᴇᴇɴ ɢᴏɴᴇ ! Cʟɪᴄᴋ ɢɪᴠᴇɴ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪᴛ ᴀɢᴀɪɴ.", reply_markup=InlineKeyboardMarkup(btns))
+
 @Client.on_message(filters.command('index_channels'))
 async def channels_info(bot, message):
     user_id = message.from_user.id
