@@ -221,8 +221,9 @@ async def start(client, message):
     ]]
 
 # Function to send cached media and handle its deletion
-    async def send_cached_media_and_handle_deletion(client, message, file_id, f_caption, grp_id, btn, PM_FILE_DELETE_TIME, settings):
-    # Send the cached media file to the user
+async def send_cached_media_and_handle_deletion(client, message, file_id, f_caption, grp_id, btn, PM_FILE_DELETE_TIME, settings):
+    try:
+        # Send the cached media file to the user
         vp = await client.send_cached_media(
             chat_id=message.from_user.id,
             file_id=file_id,
@@ -231,29 +232,36 @@ async def start(client, message):
             reply_markup=InlineKeyboardMarkup(btn)
         )
 
-    # Inform the user about the deletion time
+        # Inform the user about the deletion time
         time = get_readable_time(PM_FILE_DELETE_TIME)
         msg = await vp.reply(
             f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ"
         )
 
-    # Wait for the specified deletion time
+        # Wait for the specified deletion time
         await asyncio.sleep(PM_FILE_DELETE_TIME)
 
-    # Prepare the button for getting the file again
+        # Prepare the button for getting the file again
         btns = [[
             InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ', callback_data=f"get_del_file#{grp_id}#{file_id}")
         ]]
 
-    # Delete the messages
+        # Delete the messages
         await msg.delete()
         await vp.delete()
 
-    # Notify the user that the file has been deleted and provide the option to get it again
+        # Notify the user that the file has been deleted and provide the option to get it again
         await vp.reply(
             "Tʜᴇ ғɪʟᴇ ʜᴀs ʙᴇᴇɴ ɢᴏɴᴇ! Cʟɪᴄᴋ ɢɪᴠᴇɴ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪᴛ ᴀɢᴀɪɴ.",
             reply_markup=InlineKeyboardMarkup(btns)
         )
+    
+    except Exception as e:
+        # Log the exception (you can also print it or use a logging library)
+        print(f"An error occurred while sending cached media: {e}")
+        
+        # Optionally, notify the user about the error
+        await message.reply("Sᴏʀʀʏ, ᴛʜᴇʀᴇ ᴡᴀs ᴀɴ ᴇʀʀᴏʀ ᴡʜɪʟᴇ sᴇɴᴅɪɴɢ ᴛʜᴇ ᴍᴇᴅɪᴀ.")
 
 @Client.on_message(filters.command('index_channels'))
 async def channels_info(bot, message):
