@@ -17,32 +17,6 @@ def is_valid_ip(ip):
     return re.match(ip_pattern, ip) is not None
 
 # Bot information
-API_ID = environ.get('API_ID', '')
-if len(API_ID) == 0:
-    print('Error - API_ID is missing, exiting now')
-    exit()
-else:
-    API_ID = int(API_ID)
-API_HASH = environ.get('API_HASH', '')
-import re
-from os import environ
-from Script import script
-
-def is_enabled(type, value):
-    data = environ.get(type, str(value))
-    if data.lower() in ["true", "yes", "1", "enable", "y"]:
-        return True
-    elif data.lower() in ["false", "no", "0", "disable", "n"]:
-        return False
-    else:
-        print(f'Error - {type} is invalid, exiting now')
-        exit()
-
-def is_valid_ip(ip):
-    ip_pattern = r'\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
-    return re.match(ip_pattern, ip) is not None
-
-# Bot information
 API_ID = environ.get('API_ID', '27002519')
 if len(API_ID) == 0:
     print('Error - API_ID is missing, exiting now')
