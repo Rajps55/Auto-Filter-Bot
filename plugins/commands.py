@@ -3,7 +3,9 @@ import re
 import json
 import base64
 import sys
+import time
 from shortzy import Shortzy
+from yarl import Query
 from telegraph import upload_file
 import random, string
 import asyncio
@@ -671,7 +673,7 @@ async def remove_fsub(client, message):
     if not await is_check_admin(client, grp_id, user_id):
         return await message.reply_text('You not admin in this group.')
     if not settings['fsub']:
-        await query.answer("ʏᴏᴜ ᴅɪᴅɴ'ᴛ ᴀᴅᴅᴇᴅ ᴀɴʏ ꜰᴏʀᴄᴇ sᴜʙsᴄʀɪʙᴇ ᴄʜᴀɴɴᴇʟ...", show_alert=True)
+        await Query.answer("ʏᴏᴜ ᴅɪᴅɴ'ᴛ ᴀᴅᴅᴇᴅ ᴀɴʏ ꜰᴏʀᴄᴇ sᴜʙsᴄʀɪʙᴇ ᴄʜᴀɴɴᴇʟ...", show_alert=True)
         return
     await save_group_settings(grp_id, 'fsub', None)
     await message.reply_text("<b>Successfully removed your force channel id...</b>")
