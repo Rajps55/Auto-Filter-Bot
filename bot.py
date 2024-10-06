@@ -2,21 +2,27 @@ import os
 import time
 import asyncio
 import uvloop
-from pyrogram import types, Client
+
+# Pyrogram imports
+from pyrogram import types
+from pyrogram import Client
 from pyrogram.errors import FloodWait
+
+# Aiohttp imports
 from aiohttp import web
 from typing import Union, Optional, AsyncGenerator
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
 
 # Local imports
 from web import web_app
 from info import LOG_CHANNEL, API_ID, API_HASH, BOT_TOKEN, PORT, BIN_CHANNEL, ADMINS, DATABASE_URL
 from utils import temp, get_readable_time
+
+# Pymongo and database imports
 from database.users_chats_db import db
 from database.ia_filterdb import Media
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
-# Install uvloop for faster event loop
 uvloop.install()
 
 class Bot(Client):
@@ -37,14 +43,13 @@ class Bot(Client):
         client = MongoClient(DATABASE_URL, server_api=ServerApi('1'))
         try:
             client.admin.command('ping')
-            print("Successfully connected to MongoDB!")
+            print("Connected to MongoDB successfully!")
         except Exception as e:
-            print("Failed to connect to MongoDB:", e)
+            print("Error connecting to database!", e)
             exit()
-
         await super().start()
         
-        # Restart handling
+        # Check for restart
         if os.path.exists('restart.txt'):
             with open("restart.txt") as file:
                 chat_id, msg_id = map(int, file)
@@ -53,34 +58,33 @@ class Bot(Client):
             except:
                 pass
             os.remove('restart.txt')
-        
+            
         temp.BOT = self
         await Media.ensure_indexes()
         me = await self.get_me()
         temp.ME = me.id
         temp.U_NAME = me.username
         temp.B_NAME = me.first_name
+        username = '@' + me.username
+        print(f"{me.first_name} is started now 🤗")
 
-        print(f"{me.first_name} is now started 🤗")
-        
-        # Start web server
         app = web.AppRunner(web_app)
         await app.setup()
         await web.TCPSite(app, "0.0.0.0", PORT).start()
-
-        # Send messages to channels
+        
         try:
             await self.send_message(chat_id=LOG_CHANNEL, text=f"<b>{me.mention} Restarted! 🤖</b>")
         except:
-            print("Error - Ensure bot is admin in LOG_CHANNEL. Exiting...")
+            print("Error - Make sure bot is admin in LOG_CHANNEL, exiting now")
             exit()
+        
         try:
-            test_message = await self.send_message(chat_id=BIN_CHANNEL, text="Test")
-            await test_message.delete()
+            m = await self.send_message(chat_id=BIN_CHANNEL, text="Test")
+            await m.delete()
         except:
-            print("Error - Ensure bot is admin in BIN_CHANNEL. Exiting...")
+            print("Error - Make sure bot is admin in BIN_CHANNEL, exiting now")
             exit()
-
+        
         for admin in ADMINS:
             await self.send_message(chat_id=admin, text="<b>✅ ʙᴏᴛ ʀᴇsᴛᴀʀᴛᴇᴅ</b>")
 
@@ -88,7 +92,7 @@ class Bot(Client):
         await super().stop()
         print("Bot Stopped! Bye...")
 
-    async def iter_messages(self, chat_id: Union[int, str], limit: int, offset: int = 0) -> Optional[AsyncGenerator["types.Message", None]]:
+    async def iter_messages(self: Client, chat_id: Union[int, str], limit: int, offset: int = 0) -> Optional[AsyncGenerator["types.Message", None]]:
         current = offset
         while True:
             new_diff = min(200, limit - current)
@@ -99,23 +103,20 @@ class Bot(Client):
                 yield message
                 current += 1
 
-# Create Bot instance
-app = Bot()
-
 async def main():
+    app = Bot()
+    await app.start()
+    await asyncio.sleep(1)
+    await app.stop()
+
+if __name__ == "__main__":
     try:
-        await app.run()
-    except FloodWait as e:
-        wait_time = e.value
-        print(f"FloodWait occurred. Sleeping for {get_readable_time(wait_time)}")
-        await asyncio.sleep(wait_time)
-        print("Resuming bot...")
-        await main()
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(main())
+        else:
+            loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        print("Bot stopped manually")
     except Exception as e:
         print(f"An error occurred: {e}")
-    finally:
-        await app.stop()
-
-# Run the bot
-if __name__ == "__main__":
-    asyncio.run(main())
