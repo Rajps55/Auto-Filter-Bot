@@ -106,15 +106,13 @@ class Bot(Client):
 async def main():
     app = Bot()
     await app.start()
-    await app.idle()  # Keep the bot running indefinitely
+    
+    # Keep the bot running
+    await asyncio.Future()  # This replaces the `idle` method
 
 if __name__ == "__main__":
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(main())
-        else:
-            loop.run_until_complete(main())
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("Bot stopped manually")
     except Exception as e:
