@@ -106,8 +106,7 @@ class Bot(Client):
 async def main():
     app = Bot()
     await app.start()
-    await asyncio.sleep(1)
-    await app.stop()
+    await app.idle()  # Keep the bot running indefinitely
 
 if __name__ == "__main__":
     try:
